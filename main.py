@@ -54,6 +54,35 @@ def process_zip(req: ExtractRequest):
 
         print("ZIP downloaded. Reading entries...")
 
+        # ---------- First pass: count eligible files ----------
+        total_files = 0
+        
+        with zipfile.ZipFile(zip_path, "r") as z:
+            for info in z.infolist():
+        
+                original_path = info.filename.replace("\\", "/")
+        
+                if info.is_dir() or original_path.endswith("/"):
+                    continue
+        
+                file_name = os.path.basename(original_path)
+        
+                if not file_name or file_name.startswith("."):
+                    continue
+        
+                ext = os.path.splitext(file_name)[1].lower()
+        
+                if ext not in ALLOWED_EXTENSIONS:
+                    continue
+        
+                if info.file_size > 25 * 1024 * 1024:
+                    continue
+        
+                total_files += 1
+        
+        print(f"Eligible files to send: {total_files}")
+        
+        # ---------- Second pass: send files ----------
         sent_count = 0
         total_entries = 0
         skipped_entries = 0
@@ -105,7 +134,8 @@ def process_zip(req: ExtractRequest):
                             "contentId": content_id,
                             "fileName": file_name,
                             "originalPath": original_path,
-                            "sourceType": "dropbox"
+                            "sourceType": "dropbox",
+                            "totalFiles": total_files
                         },
                         files={
                             "file": (file_name, f)
